@@ -1,6 +1,6 @@
 try {
 	var conn = $.db.getConnection();
-	var filename = $.request.parameters.get("filenamea");
+	var filename = $.request.parameters.get("filename");
 	var batch = $.request.parameters.get("batch");
 	var schemaname = $.request.parameters.get("schemaname");
 	var tablename = $.request.parameters.get("tablename");
@@ -29,7 +29,6 @@ try {
 	}
 
 	$.response.status = 400;
-
 } finally {
 	response.Result = messages;
 	$.response.contentType = "application/json";
@@ -139,7 +138,8 @@ function uploadFile() {
 									pstmt.setTime(a, val);
 									break;
 								case $.db.types.TIMESTAMP:
-									pstmt.setTimestamp(a, parseTimestamp(val)); //20140522180910526000
+									//pstmt.setTimestamp(a, parseTimestamp(val)); //20140522180910526000
+									pstmt.setTimestamp(a, val);
 									break;
 								case $.db.types.SECONDDATE:
 									pstmt.setSeconddate(a, val);
@@ -166,7 +166,7 @@ function uploadFile() {
 				//messages.push("Result x");
 			}
 
-			messages.push(arrLines.length + " Laines inserted into " + schemaname + "." + tablename + "<br />"); //MEnsaje a cambiar luegod
+			messages.push(arrLines.length + " Lines inserted into " + schemaname + "." + tablename + "<br />"); //MEnsaje a cambiar luego
 			messages.push(((Date.now() - startdt) / 60).toFixed(2) + " Seconds taken to complete<br />");
 		} else {
 			messages.push("No data in the submitted file.");
