@@ -18,6 +18,16 @@ id17,1900-01-01,9999-12-31,AUTHOR1,2017-11-22T21:09:27,3,txt,txt
 
 */
 
+ function checkForBadData(arrLines) {
+ 	for (var i = 0; i < arrLines.length; i++) {
+ 		if (JSON.stringify(arrLines[i]).length <= 2) {
+ 			arrLines.splice(i, 1);
+ 			checkForBadData(arrLines);
+ 		}
+ 	}
+ 	return arrLines;
+ }
+
  try {
  	var conn = $.db.getConnection();
  	var batch = $.request.parameters.get("batch");
@@ -46,16 +56,6 @@ id17,1900-01-01,9999-12-31,AUTHOR1,2017-11-22T21:09:27,3,txt,txt
  	response.Result = messages;
  	$.response.contentType = "application/json";
  	$.response.setBody(JSON.stringify(response));
- }
-
- function checkForBadData(arrLines) {
- 	for (var i = 0; i < arrLines.length; i++) {
- 		if (JSON.stringify(arrLines[i]).length <= 2) {
- 			arrLines.splice(i, 1);
- 			checkForBadData(arrLines);
- 		}
- 	}
- 	return arrLines;
  }
 
  function uploadFile() {
