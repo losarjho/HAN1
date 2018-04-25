@@ -18,16 +18,6 @@ id17,1900-01-01,9999-12-31,AUTHOR1,2017-11-22T21:09:27,3,txt,txt
 
 */
 
-function checkForBadData(arrLines) {
-	for (var i = 0; i < arrLines.length; i++) {
-		if (JSON.stringify(arrLines[i]).length <= 2) {
-			arrLines.splice(i, 1);
-			checkForBadData(arrLines);
-		}
-	}
-	return arrLines;
-}
-
 String.prototype.splitCSV = function(sep) {
 	for (var foo = this.split(sep = sep || ","), x = foo.length - 1, tl; x >= 0; x--) {
 		if (foo[x].replace(/"\s+$/, '"').charAt(foo[x].length - 1) == '"') {
@@ -41,75 +31,75 @@ String.prototype.splitCSV = function(sep) {
 	return foo;
 };
 
-function addFieldStatement(p_stmt, p_meta, p_val, p_col) {
+function addFieldStatement(pstmt, pmeta, pval, pcol) {
 
 	var val = "";
-	var p_null = "on";
+	var pnull = "on";
 
-	if (typeof p_val === 'undefined') {
+	if (typeof pval === 'undefined') {
 		val = "";
 	} else {
-		val = p_val;
+		val = pval;
 	}
 
-	if (typeof val === "undefined" || (val === "" && p_null === "on") || (val.toLowerCase() === "null" && p_null === "on")) {
-		p_stmt.setNull(p_col);
+	if (typeof val === "undefined" || (val === "" && pnull === "on") || (val.toLowerCase() === "null" && pnull === "on")) {
+		pstmt.setNull(pcol);
 	} else {
-		switch (p_meta.getColumnType(p_col)) {
+		switch (pmeta.getColumnType(pcol)) {
 			case $.db.types.VARCHAR:
 			case $.db.types.CHAR:
-				p_stmt.setString(p_col, val);
+				pstmt.setString(pcol, val);
 				break;
 			case $.db.types.NVARCHAR:
 			case $.db.types.NCHAR:
 			case $.db.types.SHORTTEXT:
-				p_stmt.setNString(p_col, val);
+				pstmt.setNString(pcol, val);
 				break;
 			case $.db.types.TINYINT:
 			case $.db.types.SMALLINT:
 			case $.db.types.INT:
 			case $.db.types.BIGINT:
-				p_stmt.setInteger(p_col, parseInt(val, 10));
+				pstmt.setInteger(pcol, parseInt(val, 10));
 				break;
 			case $.db.types.DOUBLE:
-				p_stmt.setDouble(p_col, val);
+				pstmt.setDouble(pcol, val);
 				break;
 			case $.db.types.DECIMAL:
-				p_stmt.setDecimal(p_col, val);
+				pstmt.setDecimal(pcol, val);
 				break;
 			case $.db.types.REAL:
-				p_stmt.setReal(p_col, val);
+				pstmt.setReal(pcol, val);
 				break;
 			case $.db.types.NCLOB:
 			case $.db.types.TEXT:
-				p_stmt.setNClob(p_col, val);
+				pstmt.setNClob(pcol, val);
 				break;
 			case $.db.types.CLOB:
-				p_stmt.setClob(p_col, val);
+				pstmt.setClob(pcol, val);
 				break;
 			case $.db.types.BLOB:
-				p_stmt.setBlob(p_col, val);
+				pstmt.setBlob(pcol, val);
 				break;
 			case $.db.types.DATE:
-				p_stmt.setDate(p_col, val);
+				pstmt.setDate(pcol, val);
 				break;
 			case $.db.types.TIME:
-				p_stmt.setTime(p_col, val);
+				pstmt.setTime(pcol, val);
 				break;
 			case $.db.types.TIMESTAMP:
-				p_stmt.setTimestamp(p_col, val);
+				pstmt.setTimestamp(pcol, val);
 				break;
 			case $.db.types.SECONDDATE:
-				p_stmt.setSeconddate(p_col, val);
+				pstmt.setSeconddate(pcol, val);
 				break;
 			default:
-				p_stmt.setString(p_col, val);
+				pstmt.setString(pcol, val);
 				break;
 		}
 	}
 }
 
-function uploadData(p_con, p_body, p_msg) {
+function uploadData(pcon, pbody, pmsg) {
 	try {
 
 		//Get pending parameters
@@ -120,7 +110,7 @@ function uploadData(p_con, p_body, p_msg) {
 		var delimiter = $.request.parameters.get("delimeter");
 
 		//Query Tabe metadata and get the content type of each column
-		var pstmt = p_con.prepareStatement('SELECT * FROM "' + schemaname + '"."' + tablename + '" LIMIT 1');
+		var pstmt = pcon.prepareStatement('SELECT * FROM "' + schemaname + '"."' + tablename + '" LIMIT 1');
 		var rs = pstmt.executeQuery();
 		var rsm = rs.getMetaData();
 		var colCount = rsm.getColumnCount();
@@ -128,15 +118,13 @@ function uploadData(p_con, p_body, p_msg) {
 		//Start date for time processing
 		var startdt = Date.now();
 
-		var arrLines = p_body.split(/\r\n|\n/);
+		var arrLines = pbody.split(/\r\n|\n/);
 		var placeholder = new Array(colCount + 1).join('?').split('').join(',');
 
 		var insertStmnt = 'UPSERT "' + schemaname + '"."' + tablename + '" VALUES (' + placeholder + ') WITH PRIMARY KEY';
 		//var insertStmnt = 'INSERT INTO "' + schemaname + '"."' + tablename + '" VALUES (' + placeholder + ')';
 
-		pstmt = p_con.prepareStatement(insertStmnt);
-
-		arrLines = checkForBadData(arrLines);
+		pstmt = pcon.prepareStatement(insertStmnt);
 
 		if (batch === "on") {
 			pstmt.setBatchSize(arrLines.length);
@@ -153,26 +141,26 @@ function uploadData(p_con, p_body, p_msg) {
 				pstmt.addBatch();
 			} else {
 				pstmt.executeUpdate();
-				p_con.commit();
+				pcon.commit();
 			}
 		}
 
 		if (batch === "on") {
 			pstmt.executeBatch();
-			p_con.commit();
+			pcon.commit();
 		}
 
 		$.response.status = $.net.http.OK;
-		p_msg.push(arrLines.length + " Lines inserted");
-		p_msg.push(((Date.now() - startdt) / 60).toFixed(2) + " Seconds taken to complete");
+		pmsg.push(arrLines.length + " Lines inserted");
+		pmsg.push(((Date.now() - startdt) / 60).toFixed(2) + " Seconds taken to complete");
 
 	} catch (err) {
 		$.response.status = $.net.http.BAD_REQUEST;
-		p_msg.push(err.message + ": Error in line - " + i + " and column " + j);
+		pmsg.push(err.message + ": Error in line - " + ( i + 1 ) + " and column " + j);
 	} finally {
 		pstmt.close();
-		p_con.commit();
-		p_con.close();
+		pcon.commit();
+		pcon.close();
 	}
 }
 
