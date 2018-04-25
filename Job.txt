@@ -41,7 +41,7 @@ String.prototype.splitCSV = function(sep) {
 	return foo;
 };
 
-function uploadFile(p_con, p_body, p_msg) {
+function uploadData(p_con, p_body, p_msg) {
 	try {
 
 		//Get pending parameters
@@ -49,7 +49,7 @@ function uploadFile(p_con, p_body, p_msg) {
 		var schemaname = $.request.parameters.get("schemaname");
 		var tablename = $.request.parameters.get("tablename");
 		var emptyisnull = $.request.parameters.get("nulls");
-		var delimeter = $.request.parameters.get("delimeter");
+		var delimiter = $.request.parameters.get("delimeter");
 
 		//Query Tabe metadata and get the content type of each column
 		var pstmt = p_con.prepareStatement('SELECT * FROM "' + schemaname + '"."' + tablename + '" LIMIT 1');
@@ -75,31 +75,17 @@ function uploadFile(p_con, p_body, p_msg) {
 		}
 
 		for (var i = 0; i < arrLines.length; i++) {
-		/*	var a = 3;
+			var line = arrLines[i].splitCSV(delimiter);
 
-			var line = arrLines[i].splitCSV(",");
-
-			var fLen = line.length;
-			
-			for (var j = 0; j < fLen; j++) {
-			p_msg.push(line[j]);
-			}*/
-			
-			var line = arrLines[i].split(delimeter);
-			//var col = line.splice(0, arrLines.length + 1);
-			var col = line.splice(0, colCount);
-			//if (JSON.stringify(arrLines[i]).length > 2) { SE borrara al final con su llave de cierre
 			for (var j = 1; j <= colCount; j++) {
 				var val = "";
-				
-				if (typeof col[j - 1] === 'undefined') {
+
+				if (typeof line[j - 1] === 'undefined') {
 					val = "";
 				} else {
-					val = col[j - 1].split(delimeter).join("");
-					p_msg.push(val);
-					//val = val.replace("\\,", ",");
+					val = line[j - 1];
 				}
-				
+
 				if (typeof val === "undefined" || (val === "" && emptyisnull === "on") || (val.toLowerCase() === "null" && emptyisnull === "on")) {
 					pstmt.setNull(j);
 				} else {
@@ -117,7 +103,7 @@ function uploadFile(p_con, p_body, p_msg) {
 						case $.db.types.SMALLINT:
 						case $.db.types.INT:
 						case $.db.types.BIGINT:
-							pstmt.setInteger(j, parseInt(val,10));
+							pstmt.setInteger(j, parseInt(val, 10));
 							break;
 						case $.db.types.DOUBLE:
 							pstmt.setDouble(j, val);
@@ -163,7 +149,6 @@ function uploadFile(p_con, p_body, p_msg) {
 				pstmt.executeUpdate();
 				p_con.commit();
 			}
-			//}
 		}
 
 		if (batch === "on") {
@@ -195,7 +180,7 @@ try {
 
 	contents = $.request.body.asString();
 
-	uploadFile(conn, contents, messages);
+	uploadData(conn, contents, messages);
 
 } catch (err) {
 	if (contents === "") {
