@@ -15,10 +15,12 @@ FORMAT:
 
 id15,19000101,99991231,AUTHOR1,20180522180910,3,txt,txt
 id17,1900-01-01,9999-12-31,AUTHOR1,2017-11-22T21:09:27,3,txt,txt
+id19,1900-01-01,9999-12-31,AUTHOR1,2017-11-22T21:09:27,3,txt,"txt, es un texto"
 
 */
 
 String.prototype.splitCSV = function(sep) {
+	//function splitCSV(sep) {
 	for (var foo = this.split(sep = sep || ","), x = foo.length - 1, tl; x >= 0; x--) {
 		if (foo[x].replace(/"\s+$/, '"').charAt(foo[x].length - 1) == '"') {
 			if ((tl = foo[x].replace(/^\s+"/, '"')).length > 1 && tl.charAt(0) == '"') {
@@ -34,7 +36,7 @@ String.prototype.splitCSV = function(sep) {
 function addFieldStatement(pstmt, pmeta, pval, pcol) {
 
 	var val = "";
-	var pnull = "on";
+	var pnull = "off";
 
 	if (typeof pval === 'undefined') {
 		val = "";
@@ -43,11 +45,28 @@ function addFieldStatement(pstmt, pmeta, pval, pcol) {
 	}
 
 	if (typeof val === "undefined" || (val === "" && pnull === "on") || (val.toLowerCase() === "null" && pnull === "on")) {
-		pstmt.setNull(pcol);
+		switch (pmeta.getColumnType(pcol)) {
+			case $.db.types.INT:
+				pstmt.setInteger(pcol, parseInt(0, 10));
+				break;
+			case $.db.types.BIGINT:
+				pstmt.setInteger(pcol, parseInt(0, 10));
+				break;
+			case $.db.types.DOUBLE:
+				pstmt.setDouble(pcol, 0);
+				break;
+			case $.db.types.DECIMAL:
+				pstmt.setDecimal(pcol, 0);
+				break;
+			default:
+				pstmt.setNull(pcol); //pending data types
+				break;
+		}
+
 	} else {
 		switch (pmeta.getColumnType(pcol)) {
 			case $.db.types.VARCHAR:
-			case $.db.types.CHAR:
+				/*case $.db.types.CHAR:
 				pstmt.setString(pcol, val);
 				break;
 			case $.db.types.NVARCHAR:
@@ -79,7 +98,7 @@ function addFieldStatement(pstmt, pmeta, pval, pcol) {
 				break;
 			case $.db.types.BLOB:
 				pstmt.setBlob(pcol, val);
-				break;
+				break;*/
 			case $.db.types.DATE:
 				pstmt.setDate(pcol, val);
 				break;
@@ -156,7 +175,7 @@ function uploadData(pcon, pbody, pmsg) {
 
 	} catch (err) {
 		$.response.status = $.net.http.BAD_REQUEST;
-		pmsg.push(err.message + ": Error in line - " + ( i + 1 ) + " and column " + j);
+		pmsg.push(err.message + ": Error in line - " + (i + 1) + " and column " + j);
 	} finally {
 		pstmt.close();
 		pcon.commit();
