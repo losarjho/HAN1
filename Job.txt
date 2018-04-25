@@ -33,18 +33,36 @@ String.prototype.splitCSV = function(sep) {
 	return foo;
 };
 
-function addFieldStatement(pstmt, pmeta, pval, pcol) {
+function checkN(pmetad, pc) {
+	//Check numeric data types
 
-	var val = "";
-	var pnull = "off";
+	var check = '';
 
-	if (typeof pval === 'undefined') {
-		val = "";
-	} else {
-		val = pval;
+	switch (pmetad.getColumnType(pc)) {
+		case $.db.types.INT:
+			check = "X";
+			break;
+		case $.db.types.BIGINT:
+			check = "X";
+			break;
+		case $.db.types.DOUBLE:
+			check = "X";
+			break;
+		case $.db.types.DECIMAL:
+			check = "X";
+			break;
+		default:
+			check = "";
+			break;
 	}
 
-	if (typeof val === "undefined" || (val === "" && pnull === "on") || (val.toLowerCase() === "null" && pnull === "on")) {
+	return check;
+}
+
+function addFieldStatement(pstmt, pmeta, pval, pcol, pnull) {
+
+	if ((typeof pval === 'undefined' || pval.toLowerCase() === "null" || pval === "") && (checkN(pmeta, pcol) === "X" || pnull === "on")) {
+
 		switch (pmeta.getColumnType(pcol)) {
 			case $.db.types.INT:
 				pstmt.setInteger(pcol, parseInt(0, 10));
@@ -64,6 +82,11 @@ function addFieldStatement(pstmt, pmeta, pval, pcol) {
 		}
 
 	} else {
+
+		if (typeof pval === 'undefined' || pval.toLowerCase() === "null") {
+			pval = "";
+		}
+
 		switch (pmeta.getColumnType(pcol)) {
 			case $.db.types.VARCHAR:
 				/*case $.db.types.CHAR:
@@ -100,19 +123,19 @@ function addFieldStatement(pstmt, pmeta, pval, pcol) {
 				pstmt.setBlob(pcol, val);
 				break;*/
 			case $.db.types.DATE:
-				pstmt.setDate(pcol, val);
+				pstmt.setDate(pcol, pval);
 				break;
 			case $.db.types.TIME:
-				pstmt.setTime(pcol, val);
+				pstmt.setTime(pcol, pval);
 				break;
 			case $.db.types.TIMESTAMP:
-				pstmt.setTimestamp(pcol, val);
+				pstmt.setTimestamp(pcol, pval);
 				break;
 			case $.db.types.SECONDDATE:
-				pstmt.setSeconddate(pcol, val);
+				pstmt.setSeconddate(pcol, pval);
 				break;
 			default:
-				pstmt.setString(pcol, val);
+				pstmt.setString(pcol, pval);
 				break;
 		}
 	}
@@ -125,8 +148,8 @@ function uploadData(pcon, pbody, pmsg) {
 		var batch = $.request.parameters.get("batch");
 		var schemaname = $.request.parameters.get("schemaname");
 		var tablename = $.request.parameters.get("tablename");
-		//var emptyisnull = $.request.parameters.get("nulls");
-		var delimiter = $.request.parameters.get("delimeter");
+		var emptyisnull = $.request.parameters.get("nulls");
+		var delimiter = $.request.parameters.get("delimiter");
 
 		//Query Tabe metadata and get the content type of each column
 		var pstmt = pcon.prepareStatement('SELECT * FROM "' + schemaname + '"."' + tablename + '" LIMIT 1');
@@ -153,7 +176,13 @@ function uploadData(pcon, pbody, pmsg) {
 			var line = arrLines[i].splitCSV(delimiter);
 
 			for (var j = 1; j <= colCount; j++) {
-				addFieldStatement(pstmt, rsm, line[j - 1], j);
+				/*if (typeof line[j - 1] === 'undefined') {
+			    //if (line[j - 1] === 'null') {
+				pmsg.push(line[j - 1]);
+				pmsg.push( (j - 1) );
+			    }
+				//pmsg.push(typeof(line[j - 1]));*/
+				addFieldStatement(pstmt, rsm, line[j - 1], j, emptyisnull);
 			}
 
 			if (batch === "on") {
