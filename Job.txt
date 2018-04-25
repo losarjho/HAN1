@@ -41,6 +41,74 @@ String.prototype.splitCSV = function(sep) {
 	return foo;
 };
 
+function addFieldStatement(p_stmt, p_meta, p_val, p_col) {
+
+	var val = "";
+	var p_null = "on";
+
+	if (typeof p_val === 'undefined') {
+		val = "";
+	} else {
+		val = p_val;
+	}
+
+	if (typeof val === "undefined" || (val === "" && p_null === "on") || (val.toLowerCase() === "null" && p_null === "on")) {
+		p_stmt.setNull(p_col);
+	} else {
+		switch (p_meta.getColumnType(p_col)) {
+			case $.db.types.VARCHAR:
+			case $.db.types.CHAR:
+				p_stmt.setString(p_col, val);
+				break;
+			case $.db.types.NVARCHAR:
+			case $.db.types.NCHAR:
+			case $.db.types.SHORTTEXT:
+				p_stmt.setNString(p_col, val);
+				break;
+			case $.db.types.TINYINT:
+			case $.db.types.SMALLINT:
+			case $.db.types.INT:
+			case $.db.types.BIGINT:
+				p_stmt.setInteger(p_col, parseInt(val, 10));
+				break;
+			case $.db.types.DOUBLE:
+				p_stmt.setDouble(p_col, val);
+				break;
+			case $.db.types.DECIMAL:
+				p_stmt.setDecimal(p_col, val);
+				break;
+			case $.db.types.REAL:
+				p_stmt.setReal(p_col, val);
+				break;
+			case $.db.types.NCLOB:
+			case $.db.types.TEXT:
+				p_stmt.setNClob(p_col, val);
+				break;
+			case $.db.types.CLOB:
+				p_stmt.setClob(p_col, val);
+				break;
+			case $.db.types.BLOB:
+				p_stmt.setBlob(p_col, val);
+				break;
+			case $.db.types.DATE:
+				p_stmt.setDate(p_col, val);
+				break;
+			case $.db.types.TIME:
+				p_stmt.setTime(p_col, val);
+				break;
+			case $.db.types.TIMESTAMP:
+				p_stmt.setTimestamp(p_col, val);
+				break;
+			case $.db.types.SECONDDATE:
+				p_stmt.setSeconddate(p_col, val);
+				break;
+			default:
+				p_stmt.setString(p_col, val);
+				break;
+		}
+	}
+}
+
 function uploadData(p_con, p_body, p_msg) {
 	try {
 
@@ -48,7 +116,7 @@ function uploadData(p_con, p_body, p_msg) {
 		var batch = $.request.parameters.get("batch");
 		var schemaname = $.request.parameters.get("schemaname");
 		var tablename = $.request.parameters.get("tablename");
-		var emptyisnull = $.request.parameters.get("nulls");
+		//var emptyisnull = $.request.parameters.get("nulls");
 		var delimiter = $.request.parameters.get("delimeter");
 
 		//Query Tabe metadata and get the content type of each column
@@ -78,69 +146,7 @@ function uploadData(p_con, p_body, p_msg) {
 			var line = arrLines[i].splitCSV(delimiter);
 
 			for (var j = 1; j <= colCount; j++) {
-				var val = "";
-
-				if (typeof line[j - 1] === 'undefined') {
-					val = "";
-				} else {
-					val = line[j - 1];
-				}
-
-				if (typeof val === "undefined" || (val === "" && emptyisnull === "on") || (val.toLowerCase() === "null" && emptyisnull === "on")) {
-					pstmt.setNull(j);
-				} else {
-					switch (rsm.getColumnType(j)) {
-						case $.db.types.VARCHAR:
-						case $.db.types.CHAR:
-							pstmt.setString(j, val);
-							break;
-						case $.db.types.NVARCHAR:
-						case $.db.types.NCHAR:
-						case $.db.types.SHORTTEXT:
-							pstmt.setNString(j, val);
-							break;
-						case $.db.types.TINYINT:
-						case $.db.types.SMALLINT:
-						case $.db.types.INT:
-						case $.db.types.BIGINT:
-							pstmt.setInteger(j, parseInt(val, 10));
-							break;
-						case $.db.types.DOUBLE:
-							pstmt.setDouble(j, val);
-							break;
-						case $.db.types.DECIMAL:
-							pstmt.setDecimal(j, val);
-							break;
-						case $.db.types.REAL:
-							pstmt.setReal(j, val);
-							break;
-						case $.db.types.NCLOB:
-						case $.db.types.TEXT:
-							pstmt.setNClob(j, val);
-							break;
-						case $.db.types.CLOB:
-							pstmt.setClob(j, val);
-							break;
-						case $.db.types.BLOB:
-							pstmt.setBlob(j, val);
-							break;
-						case $.db.types.DATE:
-							pstmt.setDate(j, val);
-							break;
-						case $.db.types.TIME:
-							pstmt.setTime(j, val);
-							break;
-						case $.db.types.TIMESTAMP:
-							pstmt.setTimestamp(j, val);
-							break;
-						case $.db.types.SECONDDATE:
-							pstmt.setSeconddate(j, val);
-							break;
-						default:
-							pstmt.setString(j, val);
-							break;
-					}
-				}
+				addFieldStatement(pstmt, rsm, line[j - 1], j);
 			}
 
 			if (batch === "on") {
