@@ -28,6 +28,19 @@ function checkForBadData(arrLines) {
 	return arrLines;
 }
 
+String.prototype.splitCSV = function(sep) {
+	for (var foo = this.split(sep = sep || ","), x = foo.length - 1, tl; x >= 0; x--) {
+		if (foo[x].replace(/"\s+$/, '"').charAt(foo[x].length - 1) == '"') {
+			if ((tl = foo[x].replace(/^\s+"/, '"')).length > 1 && tl.charAt(0) == '"') {
+				foo[x] = foo[x].replace(/^\s*"|"\s*$/g, '').replace(/""/g, '"');
+			} else if (x) {
+				foo.splice(x - 1, 2, [foo[x - 1], foo[x]].join(sep));
+			} else foo = foo.shift().split(sep).concat(foo);
+		} else foo[x].replace(/""/g, '"');
+	}
+	return foo;
+};
+
 function uploadFile(p_con, p_body, p_msg) {
 	try {
 
@@ -53,7 +66,7 @@ function uploadFile(p_con, p_body, p_msg) {
 		var insertStmnt = 'UPSERT "' + schemaname + '"."' + tablename + '" VALUES (' + placeholder + ') WITH PRIMARY KEY';
 		//var insertStmnt = 'INSERT INTO "' + schemaname + '"."' + tablename + '" VALUES (' + placeholder + ')';
 
-		pstmt = conn.prepareStatement(insertStmnt);
+		pstmt = p_con.prepareStatement(insertStmnt);
 
 		arrLines = checkForBadData(arrLines);
 
@@ -62,70 +75,83 @@ function uploadFile(p_con, p_body, p_msg) {
 		}
 
 		for (var i = 0; i < arrLines.length; i++) {
+		/*	var a = 3;
+
+			var line = arrLines[i].splitCSV(",");
+
+			var fLen = line.length;
+			
+			for (var j = 0; j < fLen; j++) {
+			p_msg.push(line[j]);
+			}*/
+			
 			var line = arrLines[i].split(delimeter);
 			//var col = line.splice(0, arrLines.length + 1);
 			var col = line.splice(0, colCount);
 			//if (JSON.stringify(arrLines[i]).length > 2) { SE borrara al final con su llave de cierre
-			for (var a = 1; a <= colCount; a++) {
+			for (var j = 1; j <= colCount; j++) {
 				var val = "";
-				if (typeof col[a - 1] === 'undefined') {
+				
+				if (typeof col[j - 1] === 'undefined') {
 					val = "";
 				} else {
-					val = col[a - 1].split(delimeter).join("");
+					val = col[j - 1].split(delimeter).join("");
+					p_msg.push(val);
 					//val = val.replace("\\,", ",");
 				}
+				
 				if (typeof val === "undefined" || (val === "" && emptyisnull === "on") || (val.toLowerCase() === "null" && emptyisnull === "on")) {
-					pstmt.setNull(a);
+					pstmt.setNull(j);
 				} else {
-					switch (rsm.getColumnType(a)) {
+					switch (rsm.getColumnType(j)) {
 						case $.db.types.VARCHAR:
 						case $.db.types.CHAR:
-							pstmt.setString(a, val);
+							pstmt.setString(j, val);
 							break;
 						case $.db.types.NVARCHAR:
 						case $.db.types.NCHAR:
 						case $.db.types.SHORTTEXT:
-							pstmt.setNString(a, val);
+							pstmt.setNString(j, val);
 							break;
 						case $.db.types.TINYINT:
 						case $.db.types.SMALLINT:
 						case $.db.types.INT:
 						case $.db.types.BIGINT:
-							pstmt.setInteger(a, parseInt(val));
+							pstmt.setInteger(j, parseInt(val,10));
 							break;
 						case $.db.types.DOUBLE:
-							pstmt.setDouble(a, val);
+							pstmt.setDouble(j, val);
 							break;
 						case $.db.types.DECIMAL:
-							pstmt.setDecimal(a, val);
+							pstmt.setDecimal(j, val);
 							break;
 						case $.db.types.REAL:
-							pstmt.setReal(a, val);
+							pstmt.setReal(j, val);
 							break;
 						case $.db.types.NCLOB:
 						case $.db.types.TEXT:
-							pstmt.setNClob(a, val);
+							pstmt.setNClob(j, val);
 							break;
 						case $.db.types.CLOB:
-							pstmt.setClob(a, val);
+							pstmt.setClob(j, val);
 							break;
 						case $.db.types.BLOB:
-							pstmt.setBlob(a, val);
+							pstmt.setBlob(j, val);
 							break;
 						case $.db.types.DATE:
-							pstmt.setDate(a, val);
+							pstmt.setDate(j, val);
 							break;
 						case $.db.types.TIME:
-							pstmt.setTime(a, val);
+							pstmt.setTime(j, val);
 							break;
 						case $.db.types.TIMESTAMP:
-							pstmt.setTimestamp(a, val);
+							pstmt.setTimestamp(j, val);
 							break;
 						case $.db.types.SECONDDATE:
-							pstmt.setSeconddate(a, val);
+							pstmt.setSeconddate(j, val);
 							break;
 						default:
-							pstmt.setString(a, val);
+							pstmt.setString(j, val);
 							break;
 					}
 				}
@@ -139,6 +165,7 @@ function uploadFile(p_con, p_body, p_msg) {
 			}
 			//}
 		}
+
 		if (batch === "on") {
 			pstmt.executeBatch();
 			p_con.commit();
@@ -150,7 +177,7 @@ function uploadFile(p_con, p_body, p_msg) {
 
 	} catch (err) {
 		$.response.status = $.net.http.BAD_REQUEST;
-		p_msg.push(err.message + ": Error in line - " + i + " and column " + a);
+		p_msg.push(err.message + ": Error in line - " + i + " and column " + j);
 	} finally {
 		pstmt.close();
 		p_con.commit();
@@ -167,7 +194,7 @@ try {
 	var messages = [];
 
 	contents = $.request.body.asString();
-	
+
 	uploadFile(conn, contents, messages);
 
 } catch (err) {
