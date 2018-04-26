@@ -149,11 +149,11 @@ function uploadData(pcon, pbody, pmsg) {
 	try {
 
 		//Get pending parameters
-		var batch = $.request.parameters.get("batch");
-		var schemaname = $.request.parameters.get("schemaname");
-		var tablename = $.request.parameters.get("tablename");
-		var emptyisnull = $.request.parameters.get("nulls");
-		var delimiter = $.request.parameters.get("delimiter");
+		var batch = $.request.headers.get("batch");
+		var schemaname = $.request.headers.get("schemaname");
+		var tablename = $.request.headers.get("tablename");
+		var emptyisnull = $.request.headers.get("nulls");
+		var delimiter = $.request.headers.get("delimiter");
 
 		//Query Tabe metadata and get the content type of each column
 		var pstmt = pcon.prepareStatement('SELECT * FROM "' + schemaname + '"."' + tablename + '" LIMIT 1');
@@ -180,12 +180,6 @@ function uploadData(pcon, pbody, pmsg) {
 			var line = arrLines[i].splitCSV(delimiter);
 
 			for (var j = 1; j <= colCount; j++) {
-				/*if (typeof line[j - 1] === 'undefined') {
-			    //if (line[j - 1] === 'null') {
-				pmsg.push(line[j - 1]);
-				pmsg.push( (j - 1) );
-			    }
-				//pmsg.push(typeof(line[j - 1]));*/
 				addFieldStatement(pstmt, rsm, line[j - 1], j, emptyisnull);
 			}
 
@@ -229,9 +223,19 @@ try {
 	switch ($.request.method) {
 		//Handle POST
 		case $.net.http.POST:
-			uploadData(conn, contents, messages);
+
+			// check Adittional authentication key
+			var sKeyValue = $.request.headers.get("WORD");
+
+			if (sKeyValue === 'MzE0MTU5Mg==') {
+				uploadData(conn, contents, messages);
+			} else {
+				$.response.status = $.net.http.INTERNAL_SERVER_ERROR;
+				messages.push("Authentication failed");
+			}
+
 			break;
-			//Handle your other methods
+		//Handle your other methods
 		default:
 			$.response.status = $.net.http.METHOD_NOT_ALLOWED;
 			messages.push("REST method not allowed");
