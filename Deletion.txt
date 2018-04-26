@@ -194,6 +194,19 @@ function uploadData(pcon, pbody, pmsg) {
 
 		pstmt = pcon.prepareStatement(insertStmnt);
 
+//calculamos parametros introducidos para hacerlo todo mas sencillo
+//https://archive.sap.com/discussions/thread/3376895
+    var pmd = pstmt.getParameterMetaData(); 
+    var result = "Got " + pmd.getParameterCount()  + " unbound parameters\n"; 
+    result += "1: " + pmd.getParameterName(1) + "-" + pmd.getParameterTypeName(1) + "\n"; 
+    result += "2: " + pmd.getParameterName(2) + "-" + pmd.getParameterTypeName(2) + "\n"; 
+    //var result1 = rsm.getColumnTypeName(1); 
+    var result1 = rsm.getColumnName(1) + "-" + rsm.getPrecision(1) + "-" + rsm.getPrecision(2) + "\n"; 
+    
+pmsg.push(result);
+pmsg.push(result1);
+
+
 		if (batch === "on") {
 			pstmt.setBatchSize(arrLines.length);
 		}
