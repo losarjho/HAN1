@@ -127,7 +127,7 @@ function addFieldStatement(pstmt, pmeta, pval, pcol, pnull) {
 				pstmt.setBlob(pcol, val);
 				break;*/
 			case $.db.types.DATE:
-			    //pstmt.setString(pcol, pval);
+				//pstmt.setString(pcol, pval);
 				pstmt.setDate(pcol, pval);
 				break;
 			case $.db.types.TIME:
@@ -146,6 +146,26 @@ function addFieldStatement(pstmt, pmeta, pval, pcol, pnull) {
 	}
 }
 
+function getKeys(pdb, pschema, ptable) {
+	var str = '';
+
+	var stmtkey = 'SELECT "COLUMN_NAME" FROM "SYS"."CONSTRAINTS" WHERE "SCHEMA_NAME" = ';
+	stmtkey = stmtkey + "'" + pschema + "'" + ' AND "TABLE_NAME" = ' + "'" + ptable + "'" + ' ORDER BY "POSITION"';
+
+	var pstmt1 = pdb.prepareStatement(stmtkey);
+	var rs1 = pstmt1.executeQuery();
+
+	while (rs1.next()) {
+		if (str === '') {
+			str = 'WHERE "' + rs1.getString(1) + '" = ?';
+		} else {
+			str = str +  ' AND "' + rs1.getString(1) + '" = ?';
+		}
+	}
+	
+	return str;
+}
+
 function deleteData(pcon, pbody, pmsg) {
 	try {
 
@@ -156,8 +176,8 @@ function deleteData(pcon, pbody, pmsg) {
 		var emptyisnull = $.request.headers.get("nulls");
 		var delimiter = $.request.headers.get("delimiter");
 
-//Query primary key fields
-		//var pstmt1 = pcon.prepareStatement('SELECT * FROM "' + schemaname + '"."' + tablename + '" LIMIT 1');
+		//Query primary key fields
+		/*	//var pstmt1 = pcon.prepareStatement('SELECT * FROM "' + schemaname + '"."' + tablename + '" LIMIT 1');
 		
 		//var pstmt1 = pcon.prepareStatement('SELECT "COLUMN_NAME" FROM "SYS"."CONSTRAINTS" WHERE "SCHEMA_NAME" = ' + schemaname + ' AND "TABLE_NAME" = ' + tablename + ' ORDER BY "POSITION');
 		var stmtkey = 'SELECT "COLUMN_NAME" FROM "SYS"."CONSTRAINTS" WHERE "SCHEMA_NAME" = ';
@@ -172,9 +192,9 @@ var role = '';
   while (rs1.next()) {
 	       role = rs1.getString(1);
 	       pmsg.push(role);
-	    }
+	    }*/
 
-
+		pmsg.push(getKeys(pcon, schemaname, tablename));
 
 		//Query Tabe metadata and get the content type of each column
 		var pstmt = pcon.prepareStatement('SELECT * FROM "' + schemaname + '"."' + tablename + '" LIMIT 1');
@@ -188,8 +208,6 @@ var role = '';
 		var arrLines = pbody.split(/\r\n|\n/);
 		//var placeholder = new Array(colCount + 1).join('?').split('').join(',');
 
-
-
 		//var placeholder = 'WHERE "userId" = \'?\' AND "StartDate" = \'?\'';
 		//var placeholder = 'WHERE "userId" = ' + "'?' AND " + '"StartDate" = ' + "'?'";
 		//var placeholder = new Array(1 + 1).join('WHERE "userId" = ' + "'?'");
@@ -202,10 +220,6 @@ var role = '';
 		var insertStmnt = 'DELETE FROM "' + schemaname + '"."' + tablename + '" ' + placeholder;
 		pmsg.push(insertStmnt);
 
-
-
-
-
 		/*var placeholder = new Array(2 + 1).join('?').split('').join(',');
 		pmsg.push(placeholder);
 		var insertStmnt = 'UPSERT "' + schemaname + '"."' + tablename + '" ("userId","StartDate") VALUES (' + placeholder + ') WITH PRIMARY KEY';
@@ -213,10 +227,10 @@ var role = '';
 		pmsg.push(insertStmnt);*/
 
 		pstmt = pcon.prepareStatement(insertStmnt);
-//Get parameters of statement
-var numparam = pstmt.getParameterMetaData().getParameterCount(); 
+		//Get parameters of statement
+		var numparam = pstmt.getParameterMetaData().getParameterCount();
 
-/*//calculamos parametros introducidos para hacerlo todo mas sencillo
+		/*//calculamos parametros introducidos para hacerlo todo mas sencillo
 //https://archive.sap.com/discussions/thread/3376895
     var pmd = pstmt.getParameterMetaData(); 
     var result = "Got " + pmd.getParameterCount()  + " unbound parameters\n"; 
@@ -231,7 +245,6 @@ pmsg.push(numparam);
 
 //GET primary key
 //SELECT  * FROM "SYS"."CONSTRAINTS" where "TABLE_NAME" = 'com.tmd.data::Tab.EmpJob';*/
-
 
 		if (batch === "on") {
 			pstmt.setBatchSize(arrLines.length);
