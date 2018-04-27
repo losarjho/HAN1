@@ -5,11 +5,11 @@ Records are sent like a flat file using a separator or delimiter (one record per
 
 PARAMETERS:
 
--batch: Insert all records at the same time with value on
+-batch: Insert all records at the same time with value on (optional)
 -schemaname: Name of the database schema (mandatory)
 -tablename: Name of the database table (mandatory)
 -delimiter: Separator used between fields of the table (mandatory)
--nulls: Insert null value if fields are empty (value on)
+-pk : Determine number of primary keys used for deleting from 1 to pk (optional) . By default all
 
 FORMAT:
 
@@ -147,7 +147,17 @@ function addFieldStatement(pstmt, pmeta, pval, pcol, pnull) {
 }
 
 function getKeys(pdb, pschema, ptable) {
+	var pk = $.request.headers.get("pk");
+	var pos = 0;
+	var num = 10;
 	var str = '';
+
+	//If parameter was not sent we determined max number of primary keys	
+	if (typeof pk === 'undefined') {
+		num = 10;
+	} else {
+		num = pk;
+	}
 
 	var stmtkey = 'SELECT "COLUMN_NAME" FROM "SYS"."CONSTRAINTS" WHERE "SCHEMA_NAME" = ';
 	stmtkey = stmtkey + "'" + pschema + "'" + ' AND "TABLE_NAME" = ' + "'" + ptable + "'" + ' ORDER BY "POSITION"';
@@ -156,13 +166,16 @@ function getKeys(pdb, pschema, ptable) {
 	var rs1 = pstmt1.executeQuery();
 
 	while (rs1.next()) {
-		if (str === '') {
-			str = 'WHERE "' + rs1.getString(1) + '" = ?';
-		} else {
-			str = str +  ' AND "' + rs1.getString(1) + '" = ?';
+	    pos =  pos + 1;
+		if (num >= pos) {
+			if (str === '') {
+				str = 'WHERE "' + rs1.getString(1) + '" = ?';
+			} else {
+				str = str + ' AND "' + rs1.getString(1) + '" = ?';
+			}
 		}
 	}
-	
+
 	return str;
 }
 
@@ -176,75 +189,22 @@ function deleteData(pcon, pbody, pmsg) {
 		var emptyisnull = $.request.headers.get("nulls");
 		var delimiter = $.request.headers.get("delimiter");
 
-		//Query primary key fields
-		/*	//var pstmt1 = pcon.prepareStatement('SELECT * FROM "' + schemaname + '"."' + tablename + '" LIMIT 1');
-		
-		//var pstmt1 = pcon.prepareStatement('SELECT "COLUMN_NAME" FROM "SYS"."CONSTRAINTS" WHERE "SCHEMA_NAME" = ' + schemaname + ' AND "TABLE_NAME" = ' + tablename + ' ORDER BY "POSITION');
-		var stmtkey = 'SELECT "COLUMN_NAME" FROM "SYS"."CONSTRAINTS" WHERE "SCHEMA_NAME" = ';
-		stmtkey = stmtkey + "'" + schemaname + "'" + ' AND "TABLE_NAME" = ' + "'"  + tablename + "'" + ' ORDER BY "POSITION"';
-		pmsg.push(stmtkey);
-		var pstmt1 = pcon.prepareStatement(stmtkey);
-		//SELECT "COLUMN_NAME" FROM "SYS"."CONSTRAINTS" WHERE "SCHEMA_NAME" = 'BNS' AND "TABLE_NAME" = 'com.tmd.data::Tab.EmpJob' ORDER BY "POSITION";
-		var rs1 = pstmt1.executeQuery();
-
-var role = '';
-
-  while (rs1.next()) {
-	       role = rs1.getString(1);
-	       pmsg.push(role);
-	    }*/
-
-		pmsg.push(getKeys(pcon, schemaname, tablename));
-
-		//Query Tabe metadata and get the content type of each column
+		//Query Table metadata and get the content type of each column
 		var pstmt = pcon.prepareStatement('SELECT * FROM "' + schemaname + '"."' + tablename + '" LIMIT 1');
 		var rs = pstmt.executeQuery();
 		var rsm = rs.getMetaData();
-		//var colCount = rsm.getColumnCount();
 
 		//Start date for time processing
 		var startdt = Date.now();
 
 		var arrLines = pbody.split(/\r\n|\n/);
-		//var placeholder = new Array(colCount + 1).join('?').split('').join(',');
 
-		//var placeholder = 'WHERE "userId" = \'?\' AND "StartDate" = \'?\'';
-		//var placeholder = 'WHERE "userId" = ' + "'?' AND " + '"StartDate" = ' + "'?'";
-		//var placeholder = new Array(1 + 1).join('WHERE "userId" = ' + "'?'");
-		//var placeholder = 'WHERE "userId" = ' + "'?'";
-		//var placeholder = 'WHERE "userId" = ' + "'3'";
-		var placeholder = 'WHERE "userId" = ?';
-		//var placeholder = 'WHERE "userId" = ? AND "StartDate" = ?';
-		pmsg.push(placeholder);
-
-		var insertStmnt = 'DELETE FROM "' + schemaname + '"."' + tablename + '" ' + placeholder;
+		var insertStmnt = 'DELETE FROM "' + schemaname + '"."' + tablename + '" ' + getKeys(pcon, schemaname, tablename);
 		pmsg.push(insertStmnt);
-
-		/*var placeholder = new Array(2 + 1).join('?').split('').join(',');
-		pmsg.push(placeholder);
-		var insertStmnt = 'UPSERT "' + schemaname + '"."' + tablename + '" ("userId","StartDate") VALUES (' + placeholder + ') WITH PRIMARY KEY';
-		//var insertStmnt = 'INSERT INTO "' + schemaname + '"."' + tablename + '" VALUES (' + placeholder + ')';
-		pmsg.push(insertStmnt);*/
-
 		pstmt = pcon.prepareStatement(insertStmnt);
+
 		//Get parameters of statement
 		var numparam = pstmt.getParameterMetaData().getParameterCount();
-
-		/*//calculamos parametros introducidos para hacerlo todo mas sencillo
-//https://archive.sap.com/discussions/thread/3376895
-    var pmd = pstmt.getParameterMetaData(); 
-    var result = "Got " + pmd.getParameterCount()  + " unbound parameters\n"; 
-    result += "1: " + pmd.getParameterName(1) + "-" + pmd.getParameterTypeName(1) + "\n"; 
-    result += "2: " + pmd.getParameterName(2) + "-" + pmd.getParameterTypeName(2) + "\n"; 
-    //var result1 = rsm.getColumnTypeName(1); 
-    var result1 = rsm.getColumnName(1) + "-" + rsm.getPrecision(1) + "-" + rsm.getPrecision(2) + "\n"; 
-    
-pmsg.push(result);
-pmsg.push(result1);
-pmsg.push(numparam);
-
-//GET primary key
-//SELECT  * FROM "SYS"."CONSTRAINTS" where "TABLE_NAME" = 'com.tmd.data::Tab.EmpJob';*/
 
 		if (batch === "on") {
 			pstmt.setBatchSize(arrLines.length);
@@ -295,8 +255,8 @@ try {
 	contents = $.request.body.asString();
 
 	switch ($.request.method) {
-		//Handle POST
-		case $.net.http.POST:
+		//Handle DELETE
+		case $.net.http.DEL:
 
 			// check Adittional authentication key
 			var sKeyValue = $.request.headers.get("WORD");
