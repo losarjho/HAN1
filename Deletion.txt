@@ -1,5 +1,5 @@
 /*
-XSJS service that allows to upsert records directly to a table on HANA database.
+XSJS service that allows to delete records directly to a table on HANA database.
 
 Records are sent like a flat file using a separator or delimiter (one record per line)
 
@@ -146,7 +146,7 @@ function addFieldStatement(pstmt, pmeta, pval, pcol, pnull) {
 	}
 }
 
-function uploadData(pcon, pbody, pmsg) {
+function deleteData(pcon, pbody, pmsg) {
 	try {
 
 		//Get pending parameters
@@ -156,11 +156,31 @@ function uploadData(pcon, pbody, pmsg) {
 		var emptyisnull = $.request.headers.get("nulls");
 		var delimiter = $.request.headers.get("delimiter");
 
+//Query primary key fields
+		//var pstmt1 = pcon.prepareStatement('SELECT * FROM "' + schemaname + '"."' + tablename + '" LIMIT 1');
+		
+		//var pstmt1 = pcon.prepareStatement('SELECT "COLUMN_NAME" FROM "SYS"."CONSTRAINTS" WHERE "SCHEMA_NAME" = ' + schemaname + ' AND "TABLE_NAME" = ' + tablename + ' ORDER BY "POSITION');
+		var stmtkey = 'SELECT "COLUMN_NAME" FROM "SYS"."CONSTRAINTS" WHERE "SCHEMA_NAME" = ';
+		stmtkey = stmtkey + "'" + schemaname + "'" + ' AND "TABLE_NAME" = ' + "'"  + tablename + "'" + ' ORDER BY "POSITION"';
+		pmsg.push(stmtkey);
+		var pstmt1 = pcon.prepareStatement(stmtkey);
+		//SELECT "COLUMN_NAME" FROM "SYS"."CONSTRAINTS" WHERE "SCHEMA_NAME" = 'BNS' AND "TABLE_NAME" = 'com.tmd.data::Tab.EmpJob' ORDER BY "POSITION";
+		var rs1 = pstmt1.executeQuery();
+
+var role = '';
+
+  while (rs1.next()) {
+	       role = rs1.getString(1);
+	       pmsg.push(role);
+	    }
+
+
+
 		//Query Tabe metadata and get the content type of each column
 		var pstmt = pcon.prepareStatement('SELECT * FROM "' + schemaname + '"."' + tablename + '" LIMIT 1');
 		var rs = pstmt.executeQuery();
 		var rsm = rs.getMetaData();
-		var colCount = rsm.getColumnCount();
+		//var colCount = rsm.getColumnCount();
 
 		//Start date for time processing
 		var startdt = Date.now();
@@ -175,8 +195,8 @@ function uploadData(pcon, pbody, pmsg) {
 		//var placeholder = new Array(1 + 1).join('WHERE "userId" = ' + "'?'");
 		//var placeholder = 'WHERE "userId" = ' + "'?'";
 		//var placeholder = 'WHERE "userId" = ' + "'3'";
-		//var placeholder = 'WHERE "userId" = ?';
-		var placeholder = 'WHERE "userId" = ? AND "StartDate" = ?';
+		var placeholder = 'WHERE "userId" = ?';
+		//var placeholder = 'WHERE "userId" = ? AND "StartDate" = ?';
 		pmsg.push(placeholder);
 
 		var insertStmnt = 'DELETE FROM "' + schemaname + '"."' + tablename + '" ' + placeholder;
@@ -193,8 +213,10 @@ function uploadData(pcon, pbody, pmsg) {
 		pmsg.push(insertStmnt);*/
 
 		pstmt = pcon.prepareStatement(insertStmnt);
+//Get parameters of statement
+var numparam = pstmt.getParameterMetaData().getParameterCount(); 
 
-//calculamos parametros introducidos para hacerlo todo mas sencillo
+/*//calculamos parametros introducidos para hacerlo todo mas sencillo
 //https://archive.sap.com/discussions/thread/3376895
     var pmd = pstmt.getParameterMetaData(); 
     var result = "Got " + pmd.getParameterCount()  + " unbound parameters\n"; 
@@ -205,6 +227,10 @@ function uploadData(pcon, pbody, pmsg) {
     
 pmsg.push(result);
 pmsg.push(result1);
+pmsg.push(numparam);
+
+//GET primary key
+//SELECT  * FROM "SYS"."CONSTRAINTS" where "TABLE_NAME" = 'com.tmd.data::Tab.EmpJob';*/
 
 
 		if (batch === "on") {
@@ -214,7 +240,7 @@ pmsg.push(result1);
 		for (var i = 0; i < arrLines.length; i++) {
 			var line = arrLines[i].splitCSV(delimiter);
 
-			for (var j = 1; j <= 2; j++) {
+			for (var j = 1; j <= numparam; j++) {
 				addFieldStatement(pstmt, rsm, line[j - 1], j, emptyisnull);
 			}
 
@@ -232,7 +258,7 @@ pmsg.push(result1);
 		}
 
 		$.response.status = $.net.http.OK;
-		pmsg.push(arrLines.length + " Lines inserted");
+		pmsg.push(arrLines.length + " Lines deleted");
 		pmsg.push(((Date.now() - startdt) / 60).toFixed(2) + " Seconds taken to complete");
 
 	} catch (err) {
@@ -263,7 +289,7 @@ try {
 			var sKeyValue = $.request.headers.get("WORD");
 
 			if (sKeyValue === 'MzE0MTU5Mg==') {
-				uploadData(conn, contents, messages);
+				deleteData(conn, contents, messages);
 			} else {
 				$.response.status = $.net.http.INTERNAL_SERVER_ERROR;
 				messages.push("Authentication failed");
